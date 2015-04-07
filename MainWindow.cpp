@@ -78,7 +78,7 @@ MainWindow::MainWindow()
     });
   });
   _updateChecker->start();
-  
+
   _messageTimer->setSingleShot(true);
   connect(_messageTimer, &QTimer::timeout, [this] {showMessages();});
 }
@@ -560,16 +560,7 @@ std::string MainWindow::getLoginUser(const fc::ecc::public_key& serverKey)
   auto serverAccount = _clientWrapper->get_client()->get_chain()->get_account_record(serverKey);
   if( !serverAccount.valid() )
   {
-    uint64_t head_block_age( -1 );
-    try
-    {
-        head_block_age = _clientWrapper->get_client()->get_info()[ "blockchain_head_block_age" ].as_uint64();
-    }
-    catch( ... )
-    {
-    }
-
-    if( head_block_age < 1000 )
+    if(_clientWrapper->get_client()->blockchain_is_synced())
       QMessageBox::critical(this,
                             tr("Misconfigured Website"),
                             tr("The website you are trying to log into is experiencing problems, and cannot accept logins at this time."));
@@ -586,7 +577,7 @@ std::string MainWindow::getLoginUser(const fc::ecc::public_key& serverKey)
   userSelecterDialog.setWindowModality(Qt::WindowModal);
 
   QStringList accounts;
-  auto wallet_accounts = _clientWrapper->get_client()->wallet_list_accounts();
+  auto wallet_accounts = _clientWrapper->get_client()->wallet_list_my_accounts();
   if( wallet_accounts.size() == 1 )
   {
     QMessageBox loginAuthBox(QMessageBox::Question,
@@ -906,21 +897,9 @@ void MainWindow::showNoUpdateAlert()
 void MainWindow::checkWebUpdates(bool showNoUpdatesAlert, std::function<void()> finishedCheckCallback)
 {
   QString queryString = QString("?uuid=%1&version=%2").arg(app_id.toString().mid(1,36), version);
-
 #if QT_VERSION >= 0x050400
   queryString += QString("&platform=%1").arg(QSysInfo::prettyProductName());
 #endif
-
-#ifdef Q_OS_LINUX
-  queryString += QString("&os=linux");
-#elif defined(Q_OS_WIN32)
-  queryString += QString("&os=windows");
-#elif defined(Q_OS_MAC)
-  queryString += QString("&os=mac");
-#else
-  queryString += QString("&os=unknown");
-#endif
-
   QUrl manifestUrl(WEB_UPDATES_MANIFEST_URL + queryString);
   QDir dataDir(QString(clientWrapper()->get_data_dir()));
 
